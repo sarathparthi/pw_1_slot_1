@@ -1,0 +1,120 @@
+#include <Arduino.h>
+
+int Step1 = 3;
+int Dire1 = 2;
+int Sleep1 = 4;
+int MS1_1 = 7;
+int MS2_1 = 6;
+int MS3_1 = 5;
+
+int Step2 = 9;
+int Dire2 = 8;
+int Sleep2 = 10;
+int MS1_2 = 12;
+int MS2_2 = 11;
+int MS3_2 = 13;
+
+const int spr = 200; // Steps per revolution
+int RPM = 40; // Revolutions per minute
+int Microsteps = 1; // Microstepping mode (1, 2, 4, 8, 16)
+long step_delay;
+
+bool commandAvailable = false; // Flag to indicate a new command is available
+bool commandProcessing = false; // Flag to indicate if a command is currently being processed
+String currentCommand = ""; // Store the current command to be processed
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(Step1, OUTPUT);
+  pinMode(Dire1, OUTPUT);
+  pinMode(Sleep1, OUTPUT);
+  pinMode(MS1_1, OUTPUT);
+  pinMode(MS2_1, OUTPUT);
+  pinMode(MS3_1, OUTPUT);
+  pinMode(Step2, OUTPUT);
+  pinMode(Dire2, OUTPUT);
+  pinMode(Sleep2, OUTPUT);
+  pinMode(MS1_2, OUTPUT);
+  pinMode(MS2_2, OUTPUT);
+  pinMode(MS3_2, OUTPUT);
+
+  digitalWrite(Sleep1, HIGH); // Enable the stepper driver
+  digitalWrite(Sleep2, HIGH); // Enable the stepper driver
+
+  setMicrostepping(MS1_1, MS2_1, MS3_1, Microsteps);
+  setMicrostepping(MS1_2, MS2_2, MS3_2, Microsteps);
+
+  step_delay = (60L * 1000000L) / (spr * RPM); // Calculate step delay in microseconds
+}
+
+void loop() {
+  if (Serial.available()) {
+    String command = Serial.readStringUntil('\n');
+    command.trim();
+    
+    if (command.length() > 0 && !commandAvailable) {
+      currentCommand = command;
+      commandAvailable = true;
+    }
+  }
+
+  if (commandAvailable && !commandProcessing) {
+    processCommand();
+    commandAvailable = false; // Reset flag after processing
+  }
+}
+
+// Function to handle motor actions based on the current command
+void processCommand() {
+  if (currentCommand == "BLINK") {
+    commandProcessing = true; // Set flag to indicate processing
+    executeBlinkCommand();
+    commandProcessing = false; // Reset flag after command execution
+  }
+  // Add more commands as needed
+}
+
+// Function to handle motor actions when "BLINK" command is received
+void executeBlinkCommand() {
+  Serial.println("Received 'BLINK' command.");
+
+  // Perform the motor actions
+  Serial.println("Motor 2 rotating clockwise.");
+  digitalWrite(Dire2, HIGH);
+  rotateMotorSteps(Step2, 1500);
+  delay(15000);
+
+  Serial.println("Motor 2 rotating counter-clockwise.");
+  digitalWrite(Dire2, LOW);
+  rotateMotorSteps(Step2, 1500);
+  delay(5000);
+
+  Serial.println("Motor 1 rotating clockwise.");
+  digitalWrite(Dire1, HIGH);
+  rotateMotorSteps(Step1, 1500);
+  delay(10000);
+
+  Serial.println("Motor 1 rotating counter-clockwise.");
+  digitalWrite(Dire1, LOW);
+  rotateMotorSteps(Step1, 1500);
+  delay(5000);
+
+  Serial.println("BLINK command completed.");
+}
+
+// Function to rotate motor by a specific number of steps
+void rotateMotorSteps(int stepPin, int steps) {
+  for (int i = 0; i < steps; i++) {
+    digitalWrite(stepPin, HIGH);
+    delayMicroseconds(step_delay / 2);
+    digitalWrite(stepPin, LOW);
+    delayMicroseconds(step_delay / 2);
+  }
+}
+
+// Function to set microstepping mode
+void setMicrostepping(int MS1, int MS2, int MS3, int Microsteps) {
+  digitalWrite(MS1, (Microsteps & 1));
+  digitalWrite(MS2, (Microsteps >> 1) & 1);
+  digitalWrite(MS3, (Microsteps >> 2) & 1);
+}
